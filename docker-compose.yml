@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: password
+      DB_NAME: test_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+  mysql:
+    image: mysql:8
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: test_db
+    # ❌ removed port mapping to avoid 3306 conflict
+
+  redis:
+    image: redis:7
+    restart: always
+    # ❌ removed port mapping to avoid 6379 conflict

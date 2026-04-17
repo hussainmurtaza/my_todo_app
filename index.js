@@ -6,7 +6,7 @@ const authRouter = require("./src/routes/auth.router");
 const adminUserRouter = require("./src/routes/admin/user.router");
 const rateLimiter = require("./src/middlewares/rateLimiter.middleware");
 const userRouter = require("./src/routes/user.router");
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;
 const app = express();
 
 dotenv.config();
@@ -23,7 +23,7 @@ app.use("/api/user", userRouter);
 async function startServer() {
   await testConnection();
 
-  app.listen(port, () => {
+  app.listen(port, "0.0.0.0", () => {
     console.log(`Server running on port ${port}`);
   });
 }
