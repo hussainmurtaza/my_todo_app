@@ -19,7 +19,6 @@ async function testConnection() {
     conn.release();
   } catch (err) {
     console.error("MySQL connection failed:", err.message);
-    process.exit(1); // crash app if DB not available
   }
 }
 
