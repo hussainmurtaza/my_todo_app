@@ -160,7 +160,6 @@ class ProjectRepository {
             totalCount: total,
         };
     }
-
     static formatProject(project) {
         if (project && typeof project === "object" && project.ownerDetails) {
             return project;
@@ -182,7 +181,6 @@ class ProjectRepository {
             updatedAt: project.updated_at,
         };
     }
-
     static formatProjects(projects) {
         return projects.map(project => this.formatProject(project));
     }

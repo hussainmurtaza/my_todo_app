@@ -4,7 +4,6 @@ const ApiResponse = require("../helpers/response.helper");
 const createProject = async (req, res) => {
     try {
         const { name, description } = req.body;
-        console.log(req.user, "req.user");
         const owner_id = req.user.userId;
         if (!name || !owner_id) {
             return ApiResponse.validationError(res, "Missing required fields");

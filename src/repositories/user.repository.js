@@ -2,6 +2,9 @@ const { pool } = require("../../config/db");
 const redis = require("../../config/redis");
 const { addSoftDeleteCondition } = require("../helpers/query.helper");
 const CACHE_TTL = 60 * 60 * 24 * 7; // 7 days
+const SEARCH_CACHE_TTL = 60; // 60s (short TTL; avoids complex invalidation)
+const crypto = require("crypto");
+
 class UserRepository {
   static async createUser(first_name, last_name, email, password_hash) {
     const query = `INSERT INTO users (first_name, last_name, email, password_hash) VALUES (?, ?, ?, ?)`;
@@ -160,6 +163,36 @@ class UserRepository {
     const stats = result[0];
     await redis.set(cacheKeyStats(), JSON.stringify(stats), "EX", CACHE_TTL);
     return stats;
+  }
+  static async autocompleteUsers({ query, limit } = {}) {
+    const rawQuery = String(query || "").trim().toLowerCase();
+    const safeLimit = Math.min(20, Math.max(1, Number(limit) || 10));
+
+    if (!rawQuery) return [];
+
+    const cacheKey = `users:autocomplete:${crypto
+      .createHash("md5")
+      .update(`${rawQuery}:${safeLimit}`)
+      .digest("hex")}`;
+
+    const cached = await redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+    const [rows] = await pool.query(
+      `SELECT id, email
+       FROM users
+       WHERE ${addSoftDeleteCondition()}
+         AND email LIKE ?
+       ORDER BY id DESC
+       LIMIT ?`,
+      [`${rawQuery}%`, safeLimit]
+    );
+    const results = rows.map((r) => ({
+      id: r.id,
+      email: r.email,
+    }));
+    await redis.set(cacheKey, JSON.stringify(results), "EX", 60);
+
+    return results;
   }
 }
 
