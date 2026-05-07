@@ -4,7 +4,7 @@ const ProjectRepository = require("../repositories/project.repository");
 
 const createTask = async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const { userId } = req.user;
         const { projectId, title, description, status, priority, dueDate } = req.body;
         if (!projectId || !title) {
             return ApiResponse.validationError(res, "Missing required fields");

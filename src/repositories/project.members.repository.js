@@ -17,7 +17,7 @@ class ProjectMembersRepository {
         const query = `SELECT pm.*, u.first_name, u.last_name, u.email FROM project_members pm JOIN users u ON pm.user_id = u.id WHERE pm.project_id = ? AND ${addSoftDeleteCondition('u')}`;
 
         const [result] = await pool.query(query, [project_id]);
-        const formatted = this.formatProjectMembers(result);
+        const formatted = result.length > 0 ? result.map(project_member => this.formatProjectMember(project_member)) : [];
         return formatted;
     }
     static async getMembersByProjectIds(projectIds) {
@@ -41,9 +41,6 @@ class ProjectMembersRepository {
             byProject.set(formatted.projectId, list);
         }
         return byProject;
-    }
-    static formatProjectMembers(project_members) {
-        return project_members.map(project_member => this.formatProjectMember(project_member));
     }
     static formatProjectMember(project_member) {
         const firstName = project_member?.first_name || "";

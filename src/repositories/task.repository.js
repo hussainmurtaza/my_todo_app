@@ -189,9 +189,7 @@ class TaskRepository {
             dueDate: task.due_date,
             projectId: task.project_id,
             createdBy: {
-                id: task.created_by.id,
-                firstName: `${task.created_by.first_name} ${task.created_by.last_name}`,
-                email: task.created_by.email,
+                id: task.created_by
             },
             createdAt: task.created_at,
             updatedAt: task.updated_at || task.created_at,

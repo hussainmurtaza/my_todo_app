@@ -3,6 +3,7 @@ const ProjectRepository = require("../repositories/project.repository");
 const ProjectMembersRepository = require("../repositories/project.members.repository");
 const ApiResponse = require("../helpers/response.helper");
 const { pool } = require("../../config/db");
+const emailQueue = require("../queues/emailQueue");
 
 const createProjectInvitations = async (req, res) => {
     try {
@@ -12,6 +13,9 @@ const createProjectInvitations = async (req, res) => {
         if (!projectId || !Array.isArray(invitedUsers) || invitedUsers.length === 0) {
             return ApiResponse.validationError(res, "Missing required fields");
         }
+        if (invitedUsers.length > 50) {
+            return ApiResponse.error(res, "You can only invite up to 50 users at a time");
+        }
         const project = await ProjectRepository.getProjectById(projectId);
         if (!project) {
             return ApiResponse.error(res, "Project not found");
@@ -19,12 +23,25 @@ const createProjectInvitations = async (req, res) => {
         if (+project.ownerDetails.id !== +invitedBy) {
             return ApiResponse.error(res, "You are not the owner of the project");
         }
-        const invitations = await ProjectInvitationRepository.createProjectInvitations({
+        const { insertedCount, invitations } = await ProjectInvitationRepository.createProjectInvitations({
             projectId,
             invitedUsers,
             invitedBy,
         });
-        return ApiResponse.success(res, "Project invitations created successfully", invitations);
+        if (!insertedCount) {
+            return ApiResponse.error(res, "Failed to create project invitations", 400);
+        }
+        //  Send Email to invited users
+        const jobs = invitations.map(user => ({
+            name: "project-invitation",
+            data: {
+                to: user.email,
+                projectName: project.name,
+                invitationLink: `${process.env.BASE_URL}/accept-invite?token=${user.token}`
+            }
+        }));
+        await emailQueue.addBulk(jobs);
+        return ApiResponse.success(res, "Project invitations created successfully");
     }
     catch (error) {
         console.log("error", error);

@@ -1,6 +1,5 @@
 const { pool } = require("../../config/db");
 const crypto = require("crypto");
-const { sendEmail } = require("../helpers/mail.helper");
 
 class ProjectInvitationRepository {
     static async createProjectInvitations({
@@ -39,23 +38,9 @@ class ProjectInvitationRepository {
 
         const [result] = await pool.query(query, [values]);
 
-        //  Send Email to invited users (parallel)
-        await Promise.allSettled(
-            invitations.map(async ({ email, token }) => {
-                if (!email) return;
-
-                const inviteLink = `${process.env.BASE_URL}/accept-invite?token=${token}`;
-
-                return sendEmail({
-                    to: email,
-                    subject: "Project Invitation",
-                    html: `You are invited.<br/><a href="${inviteLink}">Accept Invite</a>`,
-                });
-            })
-        );
-
         return {
             insertedCount: result.affectedRows,
+            invitations,
         };
     }
     static async getProjectInvitationByToken(token, userId, connection = pool) {

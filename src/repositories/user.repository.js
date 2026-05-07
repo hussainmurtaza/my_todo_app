@@ -90,6 +90,11 @@ class UserRepository {
     }
     return result.affectedRows;
   }
+  static async getUserByIds(ids) {
+    const query = `SELECT * FROM users WHERE id IN (?) AND ${addSoftDeleteCondition()}`;
+    const [result] = await pool.query(query, [ids]);
+    return result;
+  }
   //for admin dashboard
   static async getAllUsers({
     status,
