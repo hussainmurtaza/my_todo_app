@@ -66,5 +66,28 @@ const deleteUser = async (req, res) => {
     return ApiResponse.error(res, "Internal server error", 500, error.message);
   }
 };
+const autocompleteUsers = async (req, res) => {
+  try {
+    const { search = "", limit = 20 } = req.query;
+    const safeLimit = Math.min(50, Math.max(1, Number(limit) || 20));
 
-module.exports = { createUser, loginUser, deleteUser };
+    const trimmedSearch = String(search).trim();
+    if (trimmedSearch && trimmedSearch.length < 2) {
+      return ApiResponse.validationError(
+        res,
+        "Search must be at least 2 characters",
+      );
+    }
+
+    const result = await UserRepository.autocompleteUsers({
+      query: trimmedSearch,
+      limit: safeLimit,
+    });
+
+    return ApiResponse.success(res, "Users fetched successfully", result);
+  } catch (error) {
+    return ApiResponse.error(res, "Internal server error", 500, error.message);
+  }
+};
+
+module.exports = { createUser, loginUser, deleteUser, autocompleteUsers };

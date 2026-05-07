@@ -1,60 +1,78 @@
 const ApiResponse = require("../helpers/response.helper");
 const ProjectMembersRepository = require("../repositories/project.members.repository");
 const ProjectRepository = require("../repositories/project.repository");
-const UserRepository = require("../repositories/user.repository");
 
-const addProjectMember = async (req, res) => {
+const addProjectMembers = async (req, res) => {
     try {
-        const { projectId } = req.params;
-        const userId = req.user.userId;
-        if (!projectId || !userId) {
+        const { projectId, userIds } = req.body;
+        const ownerId = req.user.userId;
+
+        if (!projectId || !Array.isArray(userIds) || userIds.length === 0) {
             return ApiResponse.validationError(res, "Missing required fields");
         }
         const project = await ProjectRepository.getProjectById(projectId);
         if (!project) {
             return ApiResponse.error(res, "Project not found");
         }
-        const user = await UserRepository.getUserById(userId);
-        if (!user) {
-            return ApiResponse.error(res, "User not found");
+
+        if (project.ownerDetails?.id !== ownerId) {
+            return ApiResponse.error(res, "You are not the owner of this project");
         }
-        if (project.ownerDetails?.id === userId) {
-            return ApiResponse.error(res, "You cannot add yourself as a project member");
-        }
+
         const projectMembers = await ProjectMembersRepository.getProjectMembers(projectId);
-        if (projectMembers.some(member => member.userDetails?.id === userId)) {
-            return ApiResponse.error(res, "User is already a project member");
+        const existingMemberIds = new Set(
+            projectMembers.map(m => m.userDetails?.id)
+        );
+
+        const validInserts = [];
+        const errors = [];
+
+        for (const userId of userIds) {
+            if (userId === ownerId) {
+                errors.push({ userId, message: "You cannot add yourself" });
+                continue;
+            }
+
+            if (existingMemberIds.has(userId)) {
+                errors.push({ userId, message: "Already a project member" });
+                continue;
+            }
+            validInserts.push(userId);
         }
-        const projectMember = await ProjectMembersRepository.addProjectMember(projectId, userId);
-        return ApiResponse.success(res, "Member added successfully", projectMember);
+        let inserted = [];
+        if (validInserts.length > 0) {
+            inserted = await ProjectMembersRepository.bulkInsert(validInserts, projectId);
+        }
+
+        return ApiResponse.success(res, "Members processed successfully", {
+            added: inserted,
+            errors,
+        });
+
     } catch (error) {
         return ApiResponse.error(res, "Internal server error", 500, error.message);
     }
-
-}
-const removeProjectMember = async (req, res) => {
+};
+const removeProjectMembers = async (req, res) => {
     try {
-        const { projectId } = req.params;
-        const userId = req.user.userId;
-        if (!projectId || !userId) {
+        const { projectId, userIds } = req.body;
+        const ownerId = req.user.userId;
+        if (!projectId || !Array.isArray(userIds) || userIds.length === 0) {
             return ApiResponse.validationError(res, "Missing required fields");
         }
         const project = await ProjectRepository.getProjectById(projectId);
         if (!project) {
             return ApiResponse.error(res, "Project not found");
         }
-        const user = await UserRepository.getUserById(userId);
-        if (!user) {
-            return ApiResponse.error(res, "User not found");
+        if (+project.ownerDetails?.id !== +ownerId) {
+            return ApiResponse.error(res, "You are not the owner of this project");
         }
-        if (project.ownerDetails?.id === userId) {
+        const validUserIds = userIds.filter(userId => +userId !== +ownerId);
+        if (validUserIds.length === 0) {
             return ApiResponse.error(res, "You cannot remove yourself as a project member");
         }
-        const removed = await ProjectMembersRepository.removeProjectMember(projectId, userId);
-        if (!removed) {
-            return ApiResponse.error(res, "User is not a member of this project", 404);
-        }
-        return ApiResponse.success(res, "Member removed successfully", removed);
+        const removed = await ProjectMembersRepository.bulkRemoveProjectMembers(validUserIds, projectId);
+        return ApiResponse.success(res, "Members removed successfully", removed);
     } catch (error) {
         return ApiResponse.error(res, "Internal server error", 500, error.message);
     }
@@ -70,7 +88,6 @@ const getProjectMembers = async (req, res) => {
             return ApiResponse.error(res, "Project not found");
         }
         const projectMembers = await ProjectMembersRepository.getProjectMembers(projectId);
-        console.log(projectMembers, "projectMembers");
         return ApiResponse.success(res, "Members fetched successfully", {
             members: projectMembers,
             totalCount: projectMembers.length,
@@ -81,7 +98,7 @@ const getProjectMembers = async (req, res) => {
 }
 
 module.exports = {
-    addProjectMember,
-    removeProjectMember,
+    addProjectMembers,
+    removeProjectMembers,
     getProjectMembers,
 }

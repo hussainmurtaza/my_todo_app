@@ -10,13 +10,15 @@
     "start:prod": "node index.js",
     "start:stage": "node index.js",
     "start:dev": "nodemon index.js",
-    "seed:users": "node seeders/seed-1lac-users.js"
+    "seed:users": "node seeders/seed-1lac-users.js",
+    "worker:email": "node src/workers/emailWorker.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "bullmq": "^5.76.6",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -28,6 +30,7 @@
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
     "mysql2": "^3.22.0",
+    "nodemailer": "^8.0.7",
     "rate-limit-redis": "^4.3.1"
   },
   "devDependencies": {
