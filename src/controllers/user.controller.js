@@ -1,7 +1,8 @@
 const bcrypt = require("bcryptjs");
 const UserRepository = require("../repositories/user.repository");
 const ApiResponse = require("../helpers/response.helper");
-const jwt = require("jsonwebtoken");
+const UserSessionsRepository = require("../repositories/user.sessions.repository");
+const TokenService = require("../services/token.service");
 
 const createUser = async (req, res) => {
   try {
@@ -43,17 +44,56 @@ const loginUser = async (req, res) => {
     if (!isPasswordValid) {
       return ApiResponse.error(res, "Invalid password");
     }
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
-    return ApiResponse.success(res, "Login successfully", { user, token });
+    // Create session
+    const session =
+      await UserSessionsRepository.createSession(
+        user.id,
+        req.ip,
+        req.headers["user-agent"]
+      );
+    // Access token
+    const accessToken =
+      TokenService.generateAccessToken({
+        userId: user.id,
+        sessionId: session.sessionId,
+      });
+    // Secure refresh cookie
+    res.cookie(
+      "refreshToken",
+      session.refreshToken,
+      {
+        httpOnly: true,
+        secure:
+          process.env.ENV ===
+          "production",
+        sameSite: "strict",
+        maxAge:
+          30 *
+          24 *
+          60 *
+          60 *
+          1000,
+      }
+    );
+    return ApiResponse.success(
+      res,
+      "Login successful",
+      {
+        user,
+        accessToken,
+        refreshToken:
+          session.refreshToken,
+        sessionId:
+          session.sessionId,
+      }
+    );
   } catch (error) {
     return ApiResponse.error(res, "Internal server error", 500, error.message);
   }
 };
 const deleteUser = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const { userId } = req.user;
     if (!userId) {
       return ApiResponse.validationError(res, "User ID is required");
     }
@@ -89,5 +129,53 @@ const autocompleteUsers = async (req, res) => {
     return ApiResponse.error(res, "Internal server error", 500, error.message);
   }
 };
+const logoutUser = async (
+  req,
+  res
+) => {
+  try {
+    const { sessionId } = req.user;
+    if (!sessionId) {
+      return ApiResponse.validationError(res, "Session ID is required");
+    }
+    await UserSessionsRepository.revokeSession(
+      sessionId
+    );
+    res.clearCookie("refreshToken");
+    return ApiResponse.success(
+      res,
+      "Logged out successfully"
+    );
+  } catch (error) {
+    return ApiResponse.error(
+      res,
+      "Internal server error"
+    );
+  }
+};
+const logoutAllDevices = async (
+  req,
+  res
+) => {
+  try {
+    const { userId } = req.user;
+    if (!userId) {
+      return ApiResponse.validationError(res, "User ID is required");
+    }
+    await UserSessionsRepository.revokeAllUserSessions(
+      userId
+    );
+    res.clearCookie("refreshToken");
+    return ApiResponse.success(
+      res,
+      "Logged out from all devices"
+    );
+  } catch (error) {
+    return ApiResponse.error(
+      res,
+      "Internal server error"
+    );
+  }
+};
 
-module.exports = { createUser, loginUser, deleteUser, autocompleteUsers };
+module.exports = { createUser, loginUser, deleteUser, autocompleteUsers, logoutUser, logoutAllDevices };
