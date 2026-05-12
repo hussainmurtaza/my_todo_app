@@ -2,7 +2,6 @@ const { pool } = require("../../config/db");
 const redis = require("../../config/redis");
 const { addSoftDeleteCondition } = require("../helpers/query.helper");
 const CACHE_TTL = 60 * 60 * 24 * 7; // 7 days
-const SEARCH_CACHE_TTL = 60; // 60s (short TTL; avoids complex invalidation)
 const crypto = require("crypto");
 
 class UserRepository {

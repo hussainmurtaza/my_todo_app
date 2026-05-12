@@ -11,12 +11,15 @@ const projectMemberRouter = require("./src/routes/project.member.router");
 const taskRouter = require("./src/routes/task.router");
 const taskAssigneeRouter = require("./src/routes/task.assignee.router");
 const projectInvitationRouter = require("./src/routes/project.invitation.router");
+const refreshTokenRouter = require("./src/routes/refreshToken.router");
+const cookieParser = require("cookie-parser");
 const port = process.env.PORT || 8080;
 const app = express();
 
 dotenv.config();
 
 app.use(cors());
+app.use(cookieParser());
 app.use(express.json());
 app.set("trust proxy", 1);
 app.use(rateLimiter);
@@ -29,7 +32,7 @@ app.use("/api/project/member", projectMemberRouter);
 app.use("/api/task", taskRouter);
 app.use("/api/task/assignee", taskAssigneeRouter);
 app.use("/api/project/invitation", projectInvitationRouter);
-
+app.use("/api/refresh-token", refreshTokenRouter);
 // start server AFTER DB check
 async function startServer() {
   await testConnection();
